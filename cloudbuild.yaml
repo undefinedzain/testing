@@ -51,9 +51,10 @@ substitutions:
   _VM_ZONE: 'asia-southeast2-a'     # VM zone
   _VM_USER: 'merahputih'          # VM username
 
+timeout: 1200s
+
 options:
   machineType: 'E2_HIGHCPU_8'
-  timeout: '1200s'
   logging: CLOUD_LOGGING_ONLY
 
 # Trigger options
