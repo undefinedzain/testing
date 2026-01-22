@@ -1,0 +1,61 @@
+steps:
+  # Step 1: Install dependencies
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['install']
+    id: 'install-dependencies'
+
+  # Step 2: Build Next.js application
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['run', 'build']
+    id: 'build-app'
+    waitFor: ['install-dependencies']
+
+  # Step 3: Create deployment package
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        tar -czf app.tar.gz \
+          .next \
+          public \
+          package.json \
+          package-lock.json \
+          next.config.js \
+          node_modules
+    id: 'create-package'
+    waitFor: ['build-app']
+
+  # Step 4: Copy to Cloud Storage (temporary storage)
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'app.tar.gz', 'gs://${_BUCKET_NAME}/testing-app/app-${SHORT_SHA}.tar.gz']
+    id: 'upload-to-storage'
+    waitFor: ['create-package']
+
+  # Step 5: Deploy to VM via SSH
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'compute'
+      - 'ssh'
+      - '${_VM_INSTANCE}'
+      - '--zone=${_VM_ZONE}'
+      - '--command=bash /home/${_VM_USER}/deploy-testing.sh ${SHORT_SHA}'
+    id: 'deploy-to-vm'
+    waitFor: ['upload-to-storage']
+
+substitutions:
+  _BUCKET_NAME: 'kopdes-merah-putih'  # Cloud Storage bucket name
+  _VM_INSTANCE: 'kopdes-backend'  # VM instance name
+  _VM_ZONE: 'asia-southeast2-a'     # VM zone
+  _VM_USER: 'merahputih'          # VM username
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  timeout: '1200s'
+  logging: CLOUD_LOGGING_ONLY
+
+# Trigger options
+# Uncomment untuk auto-trigger on push
+# tags: ['v*']
