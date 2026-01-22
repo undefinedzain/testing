@@ -40,8 +40,19 @@ rm app-latest.tar.gz
 # Restart application with PM2
 echo "🔄 Restarting application..."
 
-# Find PM2 binary
-PM2_BIN=$(which pm2 2>/dev/null || echo "/usr/local/bin/pm2")
+# Find PM2 binary - check common locations
+if [ -f "/usr/local/bin/pm2" ]; then
+  PM2_BIN="/usr/local/bin/pm2"
+elif [ -f "/usr/bin/pm2" ]; then
+  PM2_BIN="/usr/bin/pm2"
+elif command -v pm2 &> /dev/null; then
+  PM2_BIN="pm2"
+else
+  echo "❌ PM2 not found. Please install PM2: sudo npm install -g pm2"
+  exit 1
+fi
+
+echo "Using PM2 at: $PM2_BIN"
 
 if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
   $PM2_BIN restart $PM2_APP_NAME
