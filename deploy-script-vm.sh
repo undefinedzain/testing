@@ -28,11 +28,21 @@ cd $DEPLOY_DIR
 echo "📥 Downloading build from Cloud Storage..."
 gsutil cp gs://$BUCKET_NAME/testing-app/app-$COMMIT_SHA.tar.gz ./app-latest.tar.gz
 
+# Stop PM2 app if running
+echo "⏸️  Stopping application..."
+if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
+  $PM2_BIN stop $PM2_APP_NAME
+fi
+
 # Backup current version
 if [ -d ".next" ]; then
   echo "💾 Backing up current version..."
   tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz .next public package.json 2>/dev/null || true
 fi
+
+# Clean old files
+echo "🧹 Cleaning old build..."
+rm -rf .next node_modules
 
 # Extract new version
 echo "📦 Extracting new version..."
@@ -58,12 +68,14 @@ fi
 
 echo "Using PM2: $PM2_BIN"
 
+# Start or restart application
 if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
   $PM2_BIN restart $PM2_APP_NAME
 else
   $PM2_BIN start npm --name $PM2_APP_NAME -- start
-  $PM2_BIN save
 fi
+
+$PM2_BIN save
 
 echo "✅ Deployment completed successfully!"
 echo "📊 Application status:"
