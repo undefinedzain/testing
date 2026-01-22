@@ -44,11 +44,16 @@ cd $DEPLOY_DIR
 echo "📥 Downloading build from Cloud Storage..."
 gsutil cp gs://$BUCKET_NAME/testing-app/app-$COMMIT_SHA.tar.gz ./app-latest.tar.gz
 
-# Backup current .next (quick)
+# Backup and remove old files
+echo "💾 Backing up and cleaning old version..."
 if [ -d ".next" ]; then
-  echo "💾 Backing up current version..."
   rm -rf .next.backup 2>/dev/null || true
   mv .next .next.backup
+fi
+
+if [ -d "public" ]; then
+  rm -rf public.backup 2>/dev/null || true
+  mv public public.backup
 fi
 
 # Extract new version
@@ -66,8 +71,8 @@ if [ -d "public" ]; then
   cp -r public .next/standalone/public
 fi
 
-# Clean old backups
-rm -rf .next.backup &
+# Clean old backups in background
+rm -rf .next.backup public.backup &
 
 # Restart application with PM2 (Zero Downtime)
 echo "🔄 Reloading application..."
