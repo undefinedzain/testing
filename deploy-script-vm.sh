@@ -28,29 +28,22 @@ cd $DEPLOY_DIR
 echo "📥 Downloading build from Cloud Storage..."
 gsutil cp gs://$BUCKET_NAME/testing-app/app-$COMMIT_SHA.tar.gz ./app-latest.tar.gz
 
-# Stop PM2 app if running
-echo "⏸️  Stopping application..."
-if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
-  $PM2_BIN stop $PM2_APP_NAME
-fi
-
-# Backup current version
+# Backup current .next only (quick backup)
 if [ -d ".next" ]; then
   echo "💾 Backing up current version..."
-  tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz .next public package.json 2>/dev/null || true
+  mv .next .next.backup-$(date +%Y%m%d-%H%M%S) || true
 fi
 
-# Clean old files
-echo "🧹 Cleaning old build..."
-rm -rf .next node_modules
-
-# Extract new version
+# Extract new version (overwrite)
 echo "📦 Extracting new version..."
 tar -xzf app-latest.tar.gz
 rm app-latest.tar.gz
 
-# Restart application with PM2
-echo "🔄 Restarting application..."
+# Clean old backups (keep last 3)
+ls -t .next.backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+
+# Restart application with PM2 (Zero Downtime)
+echo "🔄 Reloading application..."
 
 # Find PM2 - try multiple methods
 if command -v pm2 &> /dev/null; then
@@ -68,11 +61,13 @@ fi
 
 echo "Using PM2: $PM2_BIN"
 
-# Start or restart application
+# Start or reload application (zero downtime)
 if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
-  $PM2_BIN restart $PM2_APP_NAME
+  echo "🔄 Reloading with zero downtime..."
+  $PM2_BIN reload $PM2_APP_NAME --update-env
 else
-  $PM2_BIN start npm --name $PM2_APP_NAME -- start
+  echo "🚀 Starting application in cluster mode..."
+  $PM2_BIN start npm --name $PM2_APP_NAME -i 2 -- start
 fi
 
 $PM2_BIN save
