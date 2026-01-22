@@ -5,6 +5,11 @@
 
 set -e
 
+# Load PATH untuk npm dan pm2
+export PATH=$PATH:/usr/bin:/usr/local/bin:$HOME/.npm-global/bin
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 COMMIT_SHA=$1
 APP_NAME="testing-app"
 BUCKET_NAME="kopdes-merah-putih"
@@ -34,14 +39,18 @@ rm app-latest.tar.gz
 
 # Restart application with PM2
 echo "🔄 Restarting application..."
-if pm2 describe $PM2_APP_NAME > /dev/null 2>&1; then
-  pm2 restart $PM2_APP_NAME
+
+# Find PM2 binary
+PM2_BIN=$(which pm2 2>/dev/null || echo "/usr/local/bin/pm2")
+
+if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
+  $PM2_BIN restart $PM2_APP_NAME
 else
-  pm2 start npm --name $PM2_APP_NAME -- start
-  pm2 save
+  $PM2_BIN start npm --name $PM2_APP_NAME -- start
+  $PM2_BIN save
 fi
 
 echo "✅ Deployment completed successfully!"
 echo "📊 Application status:"
-pm2 status $PM2_APP_NAME
+$PM2_BIN status $PM2_APP_NAME
 
