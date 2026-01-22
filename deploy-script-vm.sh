@@ -44,3 +44,4 @@ fi
 echo "✅ Deployment completed successfully!"
 echo "📊 Application status:"
 pm2 status $PM2_APP_NAME
+
