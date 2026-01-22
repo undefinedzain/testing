@@ -28,49 +28,30 @@ cd $DEPLOY_DIR
 echo "📥 Downloading build from Cloud Storage..."
 gsutil cp gs://$BUCKET_NAME/testing-app/app-$COMMIT_SHA.tar.gz ./app-latest.tar.gz
 
-# Extract to temporary directory
-TEMP_DIR="$DEPLOY_DIR/.deploy-temp-$$"
-echo "📦 Extracting to temporary directory..."
-mkdir -p $TEMP_DIR
-tar -xzf app-latest.tar.gz -C $TEMP_DIR
-rm app-latest.tar.gz
-
-# Backup current .next only (quick backup)
+# Backup current .next (quick)
 if [ -d ".next" ]; then
   echo "💾 Backing up current version..."
-  mv .next .next.backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+  rm -rf .next.backup 2>/dev/null || true
+  mv .next .next.backup
 fi
 
-# Move new files atomically
-echo "🔄 Replacing files..."
-if [ -d "$TEMP_DIR/.next" ]; then
-  mv $TEMP_DIR/.next .next
+# Extract new version
+echo "📦 Extracting new version..."
+tar -xzf app-latest.tar.gz
+rm app-latest.tar.gz
+
+# Copy static files to standalone
+if [ -d ".next/static" ]; then
+  mkdir -p .next/standalone/.next
+  cp -r .next/static .next/standalone/.next/static
 fi
 
-if [ -d "$TEMP_DIR/node_modules" ]; then
-  rm -rf node_modules.old 2>/dev/null || true
-  mv node_modules node_modules.old 2>/dev/null || true
-  mv $TEMP_DIR/node_modules .
-  rm -rf node_modules.old &
+if [ -d "public" ]; then
+  cp -r public .next/standalone/public
 fi
 
-# Move other files
-mv $TEMP_DIR/package.json package.json 2>/dev/null || true
-mv $TEMP_DIR/package-lock.json package-lock.json 2>/dev/null || true
-mv $TEMP_DIR/next.config.js next.config.js 2>/dev/null || true
-
-if [ -d "$TEMP_DIR/public" ]; then
-  rm -rf public.old 2>/dev/null || true
-  mv public public.old 2>/dev/null || true
-  mv $TEMP_DIR/public .
-  rm -rf public.old &
-fi
-
-# Cleanup temp directory
-rm -rf $TEMP_DIR
-
-# Clean old backups (keep last 3)
-ls -dt .next.backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+# Clean old backups
+rm -rf .next.backup &
 
 # Restart application with PM2 (Zero Downtime)
 echo "🔄 Reloading application..."
@@ -97,7 +78,8 @@ if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
   $PM2_BIN reload $PM2_APP_NAME --update-env
 else
   echo "🚀 Starting application in cluster mode..."
-  $PM2_BIN start npm --name $PM2_APP_NAME -i 2 -- start
+  cd .next/standalone
+  $PM2_BIN start node --name $PM2_APP_NAME -i 2 -- server.js
 fi
 
 $PM2_BIN save
