@@ -28,19 +28,49 @@ cd $DEPLOY_DIR
 echo "📥 Downloading build from Cloud Storage..."
 gsutil cp gs://$BUCKET_NAME/testing-app/app-$COMMIT_SHA.tar.gz ./app-latest.tar.gz
 
+# Extract to temporary directory
+TEMP_DIR="$DEPLOY_DIR/.deploy-temp-$$"
+echo "📦 Extracting to temporary directory..."
+mkdir -p $TEMP_DIR
+tar -xzf app-latest.tar.gz -C $TEMP_DIR
+rm app-latest.tar.gz
+
 # Backup current .next only (quick backup)
 if [ -d ".next" ]; then
   echo "💾 Backing up current version..."
-  mv .next .next.backup-$(date +%Y%m%d-%H%M%S) || true
+  mv .next .next.backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
 fi
 
-# Extract new version (overwrite)
-echo "📦 Extracting new version..."
-tar -xzf app-latest.tar.gz
-rm app-latest.tar.gz
+# Move new files atomically
+echo "🔄 Replacing files..."
+if [ -d "$TEMP_DIR/.next" ]; then
+  mv $TEMP_DIR/.next .next
+fi
+
+if [ -d "$TEMP_DIR/node_modules" ]; then
+  rm -rf node_modules.old 2>/dev/null || true
+  mv node_modules node_modules.old 2>/dev/null || true
+  mv $TEMP_DIR/node_modules .
+  rm -rf node_modules.old &
+fi
+
+# Move other files
+mv $TEMP_DIR/package.json package.json 2>/dev/null || true
+mv $TEMP_DIR/package-lock.json package-lock.json 2>/dev/null || true
+mv $TEMP_DIR/next.config.js next.config.js 2>/dev/null || true
+
+if [ -d "$TEMP_DIR/public" ]; then
+  rm -rf public.old 2>/dev/null || true
+  mv public public.old 2>/dev/null || true
+  mv $TEMP_DIR/public .
+  rm -rf public.old &
+fi
+
+# Cleanup temp directory
+rm -rf $TEMP_DIR
 
 # Clean old backups (keep last 3)
-ls -t .next.backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+ls -dt .next.backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
 
 # Restart application with PM2 (Zero Downtime)
 echo "🔄 Reloading application..."
