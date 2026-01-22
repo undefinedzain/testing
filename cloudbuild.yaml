@@ -41,7 +41,7 @@ steps:
       - 'ssh'
       - '${_VM_INSTANCE}'
       - '--zone=${_VM_ZONE}'
-      - '--command=bash /home/${_VM_USER}/deploy-testing.sh ${SHORT_SHA}'
+      - '--command=cd /home/${_VM_USER}/testing && bash deploy-script-vm.sh ${SHORT_SHA}'
     id: 'deploy-to-vm'
     waitFor: ['upload-to-storage']
 
