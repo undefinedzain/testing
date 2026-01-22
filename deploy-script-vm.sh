@@ -87,4 +87,3 @@ $PM2_BIN save
 echo "✅ Deployment completed successfully!"
 echo "📊 Application status:"
 $PM2_BIN status $PM2_APP_NAME
-
