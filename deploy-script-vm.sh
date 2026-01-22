@@ -72,22 +72,6 @@ rm -rf .next.backup &
 # Restart application with PM2 (Zero Downtime)
 echo "🔄 Reloading application..."
 
-# Find PM2 - try multiple methods
-if command -v pm2 &> /dev/null; then
-  PM2_BIN="pm2"
-elif [ -f "$HOME/.nvm/versions/node/v18.20.8/bin/pm2" ]; then
-  PM2_BIN="$HOME/.nvm/versions/node/v18.20.8/bin/pm2"
-elif [ -f "/usr/local/bin/pm2" ]; then
-  PM2_BIN="/usr/local/bin/pm2"
-elif [ -f "/usr/bin/pm2" ]; then
-  PM2_BIN="/usr/bin/pm2"
-else
-  echo "❌ PM2 not found. Please install PM2"
-  exit 1
-fi
-
-echo "Using PM2: $PM2_BIN"
-
 # Start or reload application (zero downtime)
 if $PM2_BIN describe $PM2_APP_NAME > /dev/null 2>&1; then
   echo "🔄 Reloading with zero downtime..."
